@@ -1,9 +1,7 @@
 gogal progess
 -------------
 
-# Some notes during the hackathon:
-
-![Alt text](/path/to/img.jpg)
+# Screenshots during the hackathon:
 
 ![2015-01-24 at 02.37.11](/screens/2015-01-24 at 02.37.11.png)
 
