@@ -101,8 +101,13 @@ func wsHandler(ws *websocket.Conn) {
 				debug.Printf("Error sending message:\n%s\n", err)
 			}
 
-		case "run":
-			debug.Printf("Client wants to run code:\n%s\n", msg)
+		case "save":
+			debug.Printf("Client wants to save code:\n%s\n", msg)
+			data, err := lib.CreateGist("Test go", msg.Body)
+			if err != nil {
+				debug.Printf("Error creating gist:\n%v\n", err)
+			}
+			debug.Printf("Created gist:\n%s\n", data)
 		}
 
 	}

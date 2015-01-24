@@ -27,3 +27,14 @@ type Client struct {
 	Name string
 	Conn *websocket.Conn
 }
+
+// https://developer.github.com/v3/gists/#create-a-gist
+type Gist struct {
+	Description string          `json:"description"`
+	Public      bool            `json:"public"`
+	Files       map[string]File `json:"files"`
+}
+
+type File struct {
+	Content string `json:"content"`
+}
