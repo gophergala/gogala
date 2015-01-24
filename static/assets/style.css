@@ -1,7 +1,39 @@
 body {
   font: normal 1.2em monospace;
 }
+
 #editor {
   position: absolute;
   top: 0; right: 0; bottom: 0; left: 0;
 }
+
+#output {
+  background-color: rgba(0, 0, 0, 0.4);
+  color: #00cc00;
+  border-top: 1px dashed #ccffee;
+
+  padding: 8px 0 8px 0;
+  margin: 4px 0 4px 0;
+  position: absolute;
+  right: 0;bottom: 0; left: 0;
+  height: 120px;
+  overflow-x: hidden !important;
+  overflow-y: auto;
+  z-index: 10;
+}
+#output .text { padding: 0;margin: 0; overflow-x: hidden;}
+#output.text> * { display: block; }
+
+*.unselectable {
+ -moz-user-select: none;
+ -khtml-user-select: none;
+ -webkit-user-select: none;
+ /*
+ Introduced in IE 10.
+ See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+ */
+ -ms-user-select: none;
+ user-select: none;
+}
+.error {color: #cc0000;font-weight: bold;}
+.success {color: #00ff00;font-weight: bold;}

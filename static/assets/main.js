@@ -5,9 +5,34 @@
 
   // UI
   var editor = null;
+  var output = document.getElementById('output');
+  var text = document.getElementById('text');
   var instructions = document.getElementById('tpl-instructions');
   // WebSocket
-  var ws = null;
+  var wsLocal = null;
+  var wsRemote = null;
+
+  // Message handling
+  var msgCtrl = (function () {
+    return {
+      info: function (data) {
+        setOutput(data.Body);
+      },
+      code: function (data) {
+        setText(data.Body, true);
+        sendCode(data.Body);
+      },
+      error: function (data) {
+        setOutput(data.Body, 'error');
+      },
+      stderr: function (data) {
+        setOutput(data.Body, 'error');
+      },
+      stdout: function (data) {
+        setOutput(data.Body, 'success', true);
+      }
+    };
+  }());
 
   function init() {
     initEditor();
@@ -35,7 +60,7 @@
       name: 'saveFile',
       bindKey: { win: 'Ctrl-S', mac: 'Command-S', sender: 'editor|cli' },
       exec: function (env) {
-        saveFile(env.getValue());
+        sendMessage('format', env.getValue());
       }
     });
 
@@ -55,24 +80,32 @@
     editor.setValue(str);
     editor.setReadOnly(false);
     editor.clearSelection();
+
   }
 
-  function saveFile(str) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
+  function sendMessage(kind, body, args) {
+    if (wsLocal && wsLocal.readyState === WebSocket.OPEN) {
+      wsLocal.send(JSON.stringify({
         Id: 'gopher-gala-2015@julienc',
-        Kind: 'format',
-        Body: editor.getValue()
+        Kind: kind,
+        Body: body,
+        Args: args
       }));
     }
   }
 
   function initSocket() {
-    ws = new WebSocket('ws://localhost:8000/ws');
-    ws.addEventListener('open', socketHandler, false);
-    ws.addEventListener('close', socketHandler, false);
-    ws.addEventListener('error', socketHandler, false);
-    ws.addEventListener('message', messageHandler, false);
+    wsLocal = new WebSocket('ws://localhost:8000/ws');
+    wsLocal.addEventListener('open', socketHandler, false);
+    wsLocal.addEventListener('close', socketHandler, false);
+    wsLocal.addEventListener('error', socketHandler, false);
+    wsLocal.addEventListener('message', messageHandler, false);
+
+    wsRemote = new WebSocket('ws://localhost:8000/co');
+    wsRemote.addEventListener('open', socketHandler, false);
+    wsRemote.addEventListener('close', socketHandler, false);
+    wsRemote.addEventListener('error', socketHandler, false);
+    wsRemote.addEventListener('message', messageHandler, false);
   }
 
   function socketHandler(e) {
@@ -84,11 +117,61 @@
 
     console.log('message', data);
 
-    if (data.Kind === 'info') {
-      setText('\n\n// ' + data.Body + '\n')
-    } else if (data.Kind === 'code') {
-      setText(data.Body, true);
+    if (typeof msgCtrl[data.Kind] === 'function') {
+      console.log('handler', msgCtrl[data.Kind]);
+      msgCtrl[data.Kind](data);
     }
+
+    // if (data.Kind === 'info') {
+    //   // This is information
+    //   setText('\n\n// ' + data.Body + '\n')
+    //
+    // } else if (data.Kind === 'code') {
+    //   // Display formatted code and send code to socket
+    //   setText(data.Body, true);
+    //   sendCode(data.Body);
+    //
+    // } else if (data.Kind === 'stdout') {
+    //   // Display results
+    //
+    // } else if (data.Kind === 'stderr') {
+    //   // Display errors
+    // }
+  }
+
+  function sendCode(src) {
+    if (wsRemote && wsRemote.readyState === WebSocket.OPEN) {
+      wsRemote.send(JSON.stringify({
+        Id: 'gopher-gala-2015@julienc',
+        Kind: 'run',
+        Body: src
+      }));
+    }
+  }
+
+  function setOutput(txt, cssClasses, empty) {
+
+    var el = document.createElement('pre');
+    el.classList.add('text');
+    el.classList.add('unselectable');
+
+    if (cssClasses) {
+      cssClasses = cssClasses.split(' ');
+      var i = 0, l = cssClasses.length;
+
+      for ( ; i < l; i++) {
+        el.classList.add(cssClasses[i]);
+      }
+
+    }
+
+    el.innerHTML += txt;
+
+    if (empty) {
+      output.innerHTML = '';
+    }
+
+    output.appendChild(document.createDocumentFragment().appendChild(el));
   }
 
 }());

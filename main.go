@@ -4,10 +4,12 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/julien/gogala/lib"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/websocket"
+	"golang.org/x/tools/playground/socket"
 )
 
 const (
@@ -29,9 +31,18 @@ func main() {
 	flag.Parse()
 	debug = lib.Debug(verbose)
 
+	u, err := url.Parse("ws://localhost:" + *listenAddr + "/co")
+	if err != nil {
+		debug.Printf("Error: %v\n", err)
+	}
+
 	http.Handle("/", indexHandler())
 	http.Handle("/static/", lib.GZipHandler(lib.CacheHandler(30, staticHandler())))
 	http.Handle("/ws", websocket.Handler(wsHandler))
+
+	ws := socket.NewHandler(u)
+
+	http.Handle("/co", ws.Handler)
 
 	debug.Printf("Listening on: %s\n", *listenAddr)
 
@@ -51,6 +62,8 @@ func staticHandler() http.Handler {
 }
 
 func wsHandler(ws *websocket.Conn) {
+	//! Remember: returning here disconnects client
+
 	registerClient(ws)
 
 	for {
@@ -60,19 +73,36 @@ func wsHandler(ws *websocket.Conn) {
 		if err := websocket.JSON.Receive(ws, &msg); err != nil {
 			return
 		}
-		debug.Printf("Received message: %s\n", msg)
+		debug.Printf("Received message:\n%s\n", msg)
 
+		// Analyse incoming messages
 		switch msg.Kind {
 		case "format":
 			data, err := lib.Format([]byte(msg.Body))
 			if err != nil {
-				log.Printf("Error: %s\n", err)
+
+				debug.Printf("Format Error:\n%s\n", err)
+
+				out = lib.Message{
+					Kind: "error",
+					Body: err.Error(),
+				}
+				if err := sendMessage(ws, out); err != nil {
+					debug.Printf("Error sending message:\n%s\n", err)
+				}
+
 			}
+
 			out = lib.Message{
 				Kind: "code",
 				Body: string(data),
 			}
-			sendAll(out)
+			if err := sendMessage(ws, out); err != nil {
+				debug.Printf("Error sending message:\n%s\n", err)
+			}
+
+		case "run":
+			debug.Printf("Client wants to run code:\n%s\n", msg)
 		}
 
 	}
@@ -93,23 +123,14 @@ func registerClient(ws *websocket.Conn) {
 		Args: lib.MakeArgs("name"),
 	}
 
-	sendMessage(u, msg)
-}
-
-func sendMessage(id string, msg lib.Message) error {
-	if c, ok := clients[id]; ok {
-		if err := websocket.JSON.Send(c.Conn, msg); err != nil {
-			return err
-		}
+	if err := sendMessage(ws, msg); err != nil {
+		debug.Printf("Error sending message:\n%s\n", err)
 	}
-	return nil
 }
 
-func sendAll(msg lib.Message) error {
-	for _, c := range clients {
-		if err := websocket.JSON.Send(c.Conn, msg); err != nil {
-			return err
-		}
+func sendMessage(ws *websocket.Conn, msg lib.Message) error {
+	if err := websocket.JSON.Send(ws, msg); err != nil {
+		return err
 	}
 	return nil
 }

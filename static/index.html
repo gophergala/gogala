@@ -2,16 +2,20 @@
 <html>
 <head>
   <title>gogala</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/static/assets/style.css">
 </head>
 
 <body>
+    <div id="editor"></div>
+    <div id="output"><pre id="text" class="text unselectable" unselectable="on">
+// Output
+</pre></div>
+  </div>
 
-  <div id="editor"></div>
+
   <script src="/static/assets/ace-builds/src-noconflict/ace.js"></script>
   <script src="/static/assets/ace-builds/src-noconflict/keybinding-vim.js"></script>
-
   <script type="text/tpl" id="tpl-instructions">
 // Gopad let's you play with Go
 // and chat with your friends
@@ -20,6 +24,7 @@
 // Instructions
 // ------------
 // Ctrl-s/Cmd-s (or :w in Normal mode):  save and run your code
+// Ctrl-r/Cmd-r :                        run code
 
 // More soon...
 // NOTE: "Vim" keybindings are enabled
