@@ -1,7 +1,5 @@
-gogal progess
--------------
-
-# Screenshots during the hackathon:
+Screenshots during the event:
+-----------------------------
 
 ![2015-01-24 at 02.37.11](/screens/2015-01-24 at 02.37.11.png)
 
