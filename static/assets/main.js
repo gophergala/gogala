@@ -150,13 +150,13 @@
   }
 
   function initSocket() {
-    wsLocal = new WebSocket('ws://localhost:8000/ws');
+    wsLocal = new WebSocket('ws://' + location.host + '/ws');
     wsLocal.addEventListener('open', socketHandler, false);
     wsLocal.addEventListener('close', socketHandler, false);
     wsLocal.addEventListener('error', socketHandler, false);
     wsLocal.addEventListener('message', socketHandler, false);
 
-    wsRemote = new WebSocket('ws://localhost:8000/co');
+    wsRemote = new WebSocket('ws://' + location.host + '/co');
     wsRemote.addEventListener('open', socketHandler, false);
     wsRemote.addEventListener('close', socketHandler, false);
     wsRemote.addEventListener('error', socketHandler, false);
