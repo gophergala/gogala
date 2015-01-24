@@ -14,6 +14,7 @@ with your friends (chat, code editing).
 
 Maybe ... But it adds "mutli-user" features and the editor is very "hipster".
 
+Screenshots can be found [here](PROGRESS.md)
 
 
 
