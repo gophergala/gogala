@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -102,12 +103,29 @@ func wsHandler(ws *websocket.Conn) {
 			}
 
 		case "save":
-			debug.Printf("Client wants to save code:\n%s\n", msg)
-			data, err := lib.CreateGist("Test go", msg.Body)
+			data, err := lib.CreateGist("GoGist", msg.Body)
 			if err != nil {
 				debug.Printf("Error creating gist:\n%v\n", err)
 			}
 			debug.Printf("Created gist:\n%s\n", data)
+
+			// Parse Githubs reponse
+			resp, err := lib.ParseResponse(data)
+			if err != nil {
+				debug.Printf("Error parsing Gists response:\n%s\n", err)
+			}
+
+			s := fmt.Sprintf("%s", resp["html_url"])
+			debug.Printf("Gist response:\n%s\n", s)
+
+			out = lib.Message{
+				Kind: "gist",
+				Body: s,
+			}
+
+			if err := sendMessage(ws, out); err != nil {
+				debug.Printf("Error sending message:\n%s\n", err)
+			}
 		}
 
 	}

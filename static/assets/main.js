@@ -3,23 +3,24 @@
 
   window.addEventListener('load', init, false);
 
+  var defaultClientId = 'gopher-gala-2015@julienc';
   // UI
   var editor = null;
-  var output = document.getElementById('output');
-  var text = document.getElementById('text');
-  var instructions = document.getElementById('tpl-instructions');
-  var saveBtn = document.getElementById('btn-gist');
+  var output = document.getElementById('js-output');
+  var instructionsTpl = document.getElementById('js-instructions-tpl');
+  var saveBtn = document.getElementById('js-btn-gist');
+  var chatTxt = document.getElementById('js-chat-txt');
+  var chatInput = document.getElementById('js-chat-input');
 
   // WebSocket
   var wsLocal = null;
   var wsRemote = null;
 
-  var connClosed = true;
-
   // Message handling
   var msgCtrl = {
     info: function (data) {
       setOutput(data.Body);
+      setChatText(data.Body);
     },
     code: function (data) {
       if (data.Body) {
@@ -38,6 +39,10 @@
     stdout: function (data) {
       saveBtn.disabled = false;
       setOutput(data.Body, 'success', true);
+    },
+    gist: function (data) {
+      setOutput('Code saved @ ' + data.Body, 'success');
+      setChatText('Code saved @ ' + data.Body);
     }
   };
 
@@ -46,13 +51,38 @@
     connected: false,
 
     open: function () {
-      socketCtrl.connected = true;
-      setOutput('Connected to socket', 'success');
+      if (!socketCtrl.connected) {
+        socketCtrl.connected = true;
+        setOutput('Connected to socket', 'success');
+        setChatText('Connected to chat');
+      }
     },
 
     close: function () {
+      if (socketCtrl.connected) {
+        setOutput('Disconneced', 'error');
+      }
       socketCtrl.connected = false;
-      setOutput('Disconneced', 'error');
+    },
+
+    error: function (e) {
+      console.log('socket error:', e);
+      setOutput('Socket error:', 'error');
+    },
+
+    message: function (e) {
+      var data = JSON.parse(e.data);
+      console.log('Message:', data);
+
+      if (typeof msgCtrl[data.Kind] === 'function') {
+        msgCtrl[data.Kind](data);
+      }
+    },
+
+    send: function (ws, payload) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+      }
     }
   };
 
@@ -62,11 +92,10 @@
     initSocket();
     // UI event handlers
     saveBtn.addEventListener('click', saveCode, false);
-    // saveBtn.disabled = true;
   }
 
   function initEditor() {
-    editor = ace.edit('editor');
+    editor = ace.edit('js-editor');
     editor.$blockScrolling = Infinity;
     editor.setTheme('ace/theme/tomorrow_night_eighties');
     editor.getSession().setMode('ace/mode/golang');
@@ -78,7 +107,7 @@
     editor.setShowPrintMargin(false);
     editor.setKeyboardHandler('ace/keyboard/vim');
 
-    setText(instructions.textContent.trim());
+    setText(instructionsTpl.textContent.trim());
 
     editor.focus();
 
@@ -125,82 +154,42 @@
     wsLocal.addEventListener('open', socketHandler, false);
     wsLocal.addEventListener('close', socketHandler, false);
     wsLocal.addEventListener('error', socketHandler, false);
-    wsLocal.addEventListener('message', messageHandler, false);
+    wsLocal.addEventListener('message', socketHandler, false);
 
     wsRemote = new WebSocket('ws://localhost:8000/co');
     wsRemote.addEventListener('open', socketHandler, false);
     wsRemote.addEventListener('close', socketHandler, false);
     wsRemote.addEventListener('error', socketHandler, false);
-    wsRemote.addEventListener('message', messageHandler, false);
+    wsRemote.addEventListener('message', socketHandler, false);
   }
 
   function socketHandler(e) {
-    console.log('WebSocket Event', e.type, e);
-
-    if (e.type === 'open' && connClosed) {
-      connClosed = false;
-      setOutput('Connected to socket.', 'success');
-
-
-    }
-
-    if (e.type === 'error') {
-      setOutput('WebSocket error', 'error');
-    }
-    if (e.type === 'close' && !connClosed) {
-      connClosed = true;
-      setOutput('Connection closed. Try reloading.', 'error');
-    }
-
-
+    console.log('WebSocket Event', e.type);
     // handle with socketCtrl
     if (typeof socketCtrl[e.type] === 'function') {
-      socketCtrl[e.type]();
+      socketCtrl[e.type](e);
     }
-  }
-
-  function messageHandler(e) {
-    var data = JSON.parse(e.data);
-
-    console.log('message', data);
-    debugger;
-
-    if (typeof msgCtrl[data.Kind] === 'function') {
-      console.log('handler', msgCtrl[data.Kind]);
-      msgCtrl[data.Kind](data);
-    }
-
-    // if (data.Kind === 'info') {
-    //   // This is information
-    //   setText('\n\n// ' + data.Body + '\n')
-    //
-    // } else if (data.Kind === 'code') {
-    //   // Display formatted code and send code to socket
-    //   setText(data.Body, true);
-    //   sendCode(data.Body);
-    //
-    // } else if (data.Kind === 'stdout') {
-    //   // Display results
-    //
-    // } else if (data.Kind === 'stderr') {
-    //   // Display errors
-    // }
   }
 
   function sendCode(src) {
-    if (wsRemote && wsRemote.readyState === WebSocket.OPEN) {
-      wsRemote.send(JSON.stringify({
-        Id: 'gopher-gala-2015@julienc',
-        Kind: 'run',
-        Body: src
-      }));
-    }
+    socketCtrl.send(wsRemote, {
+      Id: defaultClientId,
+      Kind: 'run',
+      Body: src
+    });
+  }
+
+  function saveCode() {
+    socketCtrl.send(wsLocal, {
+      Id: defaultClientId,
+      Kind: 'save',
+      Body: editor.getValue()
+    });
   }
 
   function setOutput(txt, cssClasses, empty) {
     var el = document.createElement('pre');
     el.classList.add('text');
-    el.classList.add('unselectable');
 
     if (cssClasses) {
       cssClasses = cssClasses.split(' ');
@@ -217,16 +206,7 @@
     output.scrollTop = output.scrollHeight - output.offsetHeight;
   }
 
-  function saveCode() {
-    if (wsLocal && wsLocal.readyState === WebSocket.OPEN) {
-      debugger;
-
-      wsLocal.send(JSON.stringify({
-        Id: 'gopher-gala-2015@julienc',
-        Kind: 'save',
-        Body: editor.getValue()
-      }));
-    }
+  function setChatText(str) {
+    chatTxt.value += str + '\n';
   }
-
 }());

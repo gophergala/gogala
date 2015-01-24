@@ -41,3 +41,12 @@ func CreateGist(desc, content string) ([]byte, error) {
 	}
 	return body, nil
 }
+
+func ParseResponse(data []byte) (map[string]interface{}, error) {
+	r := make(map[string]interface{})
+
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
