@@ -14,18 +14,6 @@ with your friends (chat, code editing).
 
 Maybe ... But it adds "mutli-user" features and the editor is very "hipster".
 
-Screenshots taken during the event:
------------------------------------
 
-![2015-01-24 at 02.37.11](/screens/2015-01-24 at 02.37.11.png)
 
-![2015-01-24 at 16.18.05](/screens/2015-01-24 at 16.18.05.jpg)
-
-![2015-01-24 at 16.18.14](/screens/2015-01-24 at 16.18.14.jpg)
-
-![2015-01-24 at 16.19.11](/screens/2015-01-24 at 16.19.11.jpg)
-
-![2015-01-24 at 18.42.31](/screens/2015-01-24 at 18.42.31.jpg)
-
-![2015-01-24 at 18.44.25](/screens/2015-01-24 at 18.44.25.jpg)
 
