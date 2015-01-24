@@ -14,7 +14,7 @@
 
   // WebSocket
   var wsLocal = null;
-  var wsRemote = null;
+  // var wsRemote = null;
 
   // Message handling
   var msgCtrl = {
@@ -156,11 +156,11 @@
     wsLocal.addEventListener('error', socketHandler, false);
     wsLocal.addEventListener('message', socketHandler, false);
 
-    wsRemote = new WebSocket('ws://' + location.host + '/co');
-    wsRemote.addEventListener('open', socketHandler, false);
-    wsRemote.addEventListener('close', socketHandler, false);
-    wsRemote.addEventListener('error', socketHandler, false);
-    wsRemote.addEventListener('message', socketHandler, false);
+    // wsRemote = new WebSocket('ws://' + location.host + '/co');
+    // wsRemote.addEventListener('open', socketHandler, false);
+    // wsRemote.addEventListener('close', socketHandler, false);
+    // wsRemote.addEventListener('error', socketHandler, false);
+    // wsRemote.addEventListener('message', socketHandler, false);
   }
 
   function socketHandler(e) {
@@ -172,9 +172,9 @@
   }
 
   function sendCode(src) {
-    socketCtrl.send(wsRemote, {
+    socketCtrl.send(wsLocal, {
       Id: defaultClientId,
-      Kind: 'run',
+      Kind: 'compile',
       Body: src
     });
   }

@@ -132,6 +132,36 @@ func wsHandler(ws *websocket.Conn) {
 			if err := sendMessage(ws, out); err != nil {
 				debug.Printf("Error sending message:\n%s\n", err)
 			}
+
+		case "compile":
+			debug.Printf("Client wants to compile code:\n%s\n", msg.Body)
+
+			data, err := lib.Compile(msg.Body)
+			if err != nil {
+				debug.Printf("Error compiling code (remote):\n%s\n", err)
+			}
+			debug.Printf("Compiled code:\n%s\n", string(data))
+
+			cr, err := lib.ParseCompileResponse(data)
+			if err != nil {
+				debug.Printf("Error parsing compile response:\n%s\n", err)
+			}
+			debug.Printf("Compile response:\n%s\n", cr)
+
+			// WTF!
+			if s := cr.Message(); s != nil {
+				if ok := s.(string); ok != "" {
+					out = lib.Message{
+						Kind: "stdout",
+						Body: s.(string),
+					}
+
+					if err := sendMessage(ws, out); err != nil {
+						debug.Printf("Error sending message:\n%s\n", err)
+					}
+				}
+			}
+
 		}
 
 	}
