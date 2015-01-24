@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/julien/gogala/lib"
 	"github.com/satori/go.uuid"
@@ -18,7 +19,7 @@ const (
 )
 
 var (
-	listenAddr = flag.String("addr", "8000", "Listen address")
+	listenAddr = flag.String("addr", os.Getenv("PORT"), "Listen address")
 	clients    = make(map[string]lib.Client)
 	debug      lib.Debug
 	verbose    bool
@@ -26,10 +27,15 @@ var (
 
 func init() {
 	flag.BoolVar(&verbose, "verbose", true, "Debug mode")
+
+	if *listenAddr == "" {
+		*listenAddr = "8080"
+	}
 }
 
 func main() {
 	flag.Parse()
+
 	debug = lib.Debug(verbose)
 
 	u, err := url.Parse("ws://localhost:" + *listenAddr + "/co")
