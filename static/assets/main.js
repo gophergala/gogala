@@ -13,7 +13,7 @@
   var chatInput = document.getElementById('js-chat-input');
 
   // WebSocket
-  var wsLocal = null;
+  var ws = null;
   // var wsRemote = null;
 
   // Message handling
@@ -43,6 +43,10 @@
     gist: function (data) {
       setOutput('Code saved @ ' + data.Body, 'success');
       setChatText('Code saved @ ' + data.Body);
+    },
+
+    chat: function (data) {
+      setChatText(data.Body);
     }
   };
 
@@ -92,12 +96,14 @@
     initSocket();
     // UI event handlers
     saveBtn.addEventListener('click', saveCode, false);
+    chatInput.addEventListener('keydown', sendChatMessage, false);
+
   }
 
   function initEditor() {
     editor = ace.edit('js-editor');
     editor.$blockScrolling = Infinity;
-    editor.setTheme('ace/theme/tomorrow_night_eighties');
+    editor.setTheme('ace/theme/vibrant_ink');
     editor.getSession().setMode('ace/mode/golang');
     editor.setDisplayIndentGuides(false);
     editor.setFontSize(13);
@@ -106,6 +112,8 @@
     editor.setShowInvisibles(false);
     editor.setShowPrintMargin(false);
     editor.setKeyboardHandler('ace/keyboard/vim');
+    // Hide gutter
+    editor.renderer.setShowGutter(false);
 
     setText(instructionsTpl.textContent.trim());
 
@@ -139,8 +147,8 @@
   }
 
   function sendMessage(kind, body, args) {
-    if (wsLocal && wsLocal.readyState === WebSocket.OPEN) {
-      wsLocal.send(JSON.stringify({
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
         Id: 'gopher-gala-2015@julienc',
         Kind: kind,
         Body: body,
@@ -150,12 +158,14 @@
   }
 
   function initSocket() {
-    wsLocal = new WebSocket('ws://' + location.host + '/ws');
-    wsLocal.addEventListener('open', socketHandler, false);
-    wsLocal.addEventListener('close', socketHandler, false);
-    wsLocal.addEventListener('error', socketHandler, false);
-    wsLocal.addEventListener('message', socketHandler, false);
+    ws = new WebSocket('ws://' + location.host + '/ws');
+    ws.addEventListener('open', socketHandler, false);
+    ws.addEventListener('close', socketHandler, false);
+    ws.addEventListener('error', socketHandler, false);
+    ws.addEventListener('message', socketHandler, false);
 
+    // This is for "local" compiling ...
+    // disabled now
     // wsRemote = new WebSocket('ws://' + location.host + '/co');
     // wsRemote.addEventListener('open', socketHandler, false);
     // wsRemote.addEventListener('close', socketHandler, false);
@@ -172,7 +182,7 @@
   }
 
   function sendCode(src) {
-    socketCtrl.send(wsLocal, {
+    socketCtrl.send(ws, {
       Id: defaultClientId,
       Kind: 'compile',
       Body: src
@@ -180,7 +190,7 @@
   }
 
   function saveCode() {
-    socketCtrl.send(wsLocal, {
+    socketCtrl.send(ws, {
       Id: defaultClientId,
       Kind: 'save',
       Body: editor.getValue()
@@ -208,5 +218,13 @@
 
   function setChatText(str) {
     chatTxt.value += str + '\n';
+  }
+
+  function sendChatMessage(e) {
+    if (e.keyCode === 13) {
+      var txt = e.currentTarget.value;
+      e.currentTarget.value = '';
+      sendMessage('chat', txt);
+    }
   }
 }());

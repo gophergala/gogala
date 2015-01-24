@@ -7,15 +7,16 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/julien/gogala/lib"
-	"github.com/satori/go.uuid"
 	"golang.org/x/net/websocket"
 	"golang.org/x/tools/playground/socket"
 )
 
 const (
-	defaultName = "user-"
+	defaultName = "›µ-"
 )
 
 var (
@@ -94,7 +95,8 @@ func wsHandler(ws *websocket.Conn) {
 					Kind: "error",
 					Body: err.Error(),
 				}
-				if err := sendMessage(ws, out); err != nil {
+
+				if err := sendMulti(ws, out); err != nil {
 					debug.Printf("Error sending message:\n%s\n", err)
 				}
 
@@ -104,7 +106,7 @@ func wsHandler(ws *websocket.Conn) {
 				Kind: "code",
 				Body: string(data),
 			}
-			if err := sendMessage(ws, out); err != nil {
+			if err := sendMulti(ws, out); err != nil {
 				debug.Printf("Error sending message:\n%s\n", err)
 			}
 
@@ -129,7 +131,7 @@ func wsHandler(ws *websocket.Conn) {
 				Body: s,
 			}
 
-			if err := sendMessage(ws, out); err != nil {
+			if err := sendMulti(ws, out); err != nil {
 				debug.Printf("Error sending message:\n%s\n", err)
 			}
 
@@ -156,19 +158,40 @@ func wsHandler(ws *websocket.Conn) {
 						Body: s.(string),
 					}
 
-					if err := sendMessage(ws, out); err != nil {
+					if err := sendMulti(ws, out); err != nil {
 						debug.Printf("Error sending message:\n%s\n", err)
 					}
 				}
 			}
 
+		case "chat":
+			debug.Printf("The dude want to say something:\n%s\n", msg.Body)
+			t := time.Now().Format(time.Kitchen)
+
+			if c := getClient(ws); c != nil {
+				out = lib.Message{
+					Kind: "chat",
+					Body: lib.AppendString("[", t, "]", c.Name, ": ", msg.Body),
+				}
+				if err := sendMulti(ws, out); err != nil {
+					debug.Printf("Error sending message:\n%s\n", err)
+				}
+			}
 		}
 
 	}
 }
 
 func registerClient(ws *websocket.Conn) {
-	u := uuid.NewV4().String()
+
+	c := 1
+	for _ = range clients {
+		c++
+	}
+	u := strconv.Itoa(c)
+	if c < 10 {
+		u = "0" + u
+	}
 
 	clients[u] = lib.Client{
 		Id:   u,
@@ -176,20 +199,64 @@ func registerClient(ws *websocket.Conn) {
 		Conn: ws,
 	}
 
-	msg := lib.Message{
+	var msg lib.Message
+
+	msg = lib.Message{
 		Kind: "info",
 		Body: "Welcome, " + clients[u].Name,
 		Args: lib.MakeArgs("name"),
 	}
 
-	if err := sendMessage(ws, msg); err != nil {
+	if err := sendToClient(ws, msg); err != nil {
 		debug.Printf("Error sending message:\n%s\n", err)
+	}
+
+	msg = lib.Message{
+		Kind: "info",
+		Body: clients[u].Name + " joined",
+	}
+	if err := sendToOthers(ws, msg); err != nil {
+		debug.Printf("Error sending mesaage to others:\n%s\n", err)
 	}
 }
 
-func sendMessage(ws *websocket.Conn, msg lib.Message) error {
+func getClient(ws *websocket.Conn) *lib.Client {
+	var c *lib.Client
+	for _, v := range clients {
+		if v.Conn == ws {
+			return &v
+		}
+	}
+	return c
+}
+
+func sendToClient(ws *websocket.Conn, msg lib.Message) error {
 	if err := websocket.JSON.Send(ws, msg); err != nil {
 		return err
 	}
+	return nil
+}
+
+func sendToOthers(ws *websocket.Conn, msg lib.Message) error {
+	for _, v := range clients {
+		if v.Conn != ws {
+			return sendToClient(v.Conn, msg)
+		}
+	}
+	return nil
+}
+
+func sendMulti(ws *websocket.Conn, msg lib.Message) error {
+
+	if err := sendToClient(ws, msg); err != nil {
+		debug.Printf("Error sending message to client:\n%s\n", err)
+		return err
+	}
+
+	if err := sendToOthers(ws, msg); err != nil {
+		debug.Printf("Error sending message to others:\n%s\n", err)
+		return err
+	}
+
 	return nil
 }
