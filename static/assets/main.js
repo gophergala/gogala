@@ -6,9 +6,12 @@
   // UI
   var editor = null;
   var instructions = document.getElementById('tpl-instructions');
+  // WebSocket
+  var ws = null;
 
   function init() {
     initEditor();
+    initSocket();
   }
 
   function initEditor() {
@@ -32,7 +35,7 @@
       name: 'saveFile',
       bindKey: { win: 'Ctrl-S', mac: 'Command-S', sender: 'editor|cli' },
       exec: function (env) {
-        // sendCode(env.getValue());
+        saveFile(env.getValue());
       }
     });
 
@@ -44,7 +47,10 @@
     });
   }
 
-  function setText(str) {
+  function setText(str, write) {
+    var val = editor.getValue();
+    str = write ? str : val + str;
+
     editor.setReadOnly(true);
     editor.setValue(str);
     editor.setReadOnly(false);
@@ -52,7 +58,37 @@
   }
 
   function saveFile(str) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        Id: 'gopher-gala-2015@julienc',
+        Kind: 'format',
+        Body: editor.getValue()
+      }));
+    }
+  }
 
+  function initSocket() {
+    ws = new WebSocket('ws://localhost:8000/ws');
+    ws.addEventListener('open', socketHandler, false);
+    ws.addEventListener('close', socketHandler, false);
+    ws.addEventListener('error', socketHandler, false);
+    ws.addEventListener('message', messageHandler, false);
+  }
+
+  function socketHandler(e) {
+    console.log('WebSocket Event', e.type, e);
+  }
+
+  function messageHandler(e) {
+    var data = JSON.parse(e.data);
+
+    console.log('message', data);
+
+    if (data.Kind === 'info') {
+      setText('\n\n// ' + data.Body + '\n')
+    } else if (data.Kind === 'code') {
+      setText(data.Body, true);
+    }
   }
 
 }());
