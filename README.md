@@ -10,7 +10,7 @@ An online "Go code editor" that let's you run Go code and interact
 with your friends (chat, code editing).
 
 
-*Isn't that just like the [Go playground](http://play.golang.org)?*
+  *Isn't that just like the [Go playground](http://play.golang.org)?*
 
 Maybe ... But it adds "mutli-user" features and the editor is very "hipster".
 
