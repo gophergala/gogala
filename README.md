@@ -3,6 +3,7 @@ gogala
 
 My entry for the [Gopher Gala](http://gophergala.com) (23-25 Jan 2015)
 
+![Screenshot](/screenshot.jpg)
 
 ### Concepts
 
