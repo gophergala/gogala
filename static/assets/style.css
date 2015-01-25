@@ -8,7 +8,7 @@ body {
 
 #js-editor {
   position: absolute;
-  top: 0; 
+  top: 0;
   right: 0; bottom: 0; left: 0;
 }
 
@@ -31,73 +31,50 @@ body {
 
 #js-output .text {
   padding: 0;margin: 0; overflow-x: hidden;
-  word-wrap: break-word;
+  color: #34C9F5; word-wrap: break-word;
 }
-
-#js-output.text> * { display: block; }
-
-/* *.unselectable { */
-/*  -moz-user-select: none; */
-/*  -khtml-user-select: none; */
-/*  -webkit-user-select: none; */
-/*  /* */
-/*  Introduced in IE 10. */
-/*  See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/ */
-/*  */ */
-/*  -ms-user-select: none; */
-/*  user-select: none; */
-/* } */
-
-.error   {color: #cc0000;font-weight: bold;}
-.success {color: #00ff00;font-weight: bold;}
 
 #js-sidebar {
   background-color: #eee;
   height: 100% !important;
   position: absolute;
-  top: 0; 
-  right: 0;
-  bottom: 0;
+  top: 0; right: 0; bottom: 0;
   width: 30%;
   z-index: 20;
 }
 
-.btn {
-  font-weight: bold;
-  padding: 10px;
-}
-
-.top-right {
-  position: absolute;
-  top: 10px; right: 10px;
-}
+.btn { color: #666;font-weight: bold;padding: 10px;text-transform: uppercase; }
+.btn:hover { color: #000; }
+.top-right { position: absolute; top: 10px; right: 10px; }
 
 #js-sidebar .content {
-  border-top: 1px dashed #333;
-  position: relative;
-  padding: 4px;
-  top: 60px;
   height: 100%;
+  padding: 4px;
+  position: relative;
+  top: 60px;
 }
 
 .content textarea {
   border: none;
-  outline: none;
-  width: 98%;
+  background: #000;
+  color: #ccc;
+  font: normal 0.9em monospace;
+  max-height: 90%;
   max-width: 98%;
   min-height: 80%;
-  max-height: 90%;
-  font: normal 1.0em monospace;
+  outline: none;
   resize: none;
+  width: 98%;
 }
 
 .content input[type="text"] {
   border: none;
-  outline: none;
-  width: 98%;
+  background: #000;
+  color: #fff;
+  font: normal 0.9em monospace;
   max-width: 98%;
+  outline: none;
   padding: 4px;
-  font: normal 1.0em monospace;
+  width: 98%;
 }
 
-.stderr { color: #eee; }

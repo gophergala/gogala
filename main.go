@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/julien/gogala/lib"
 	"golang.org/x/net/websocket"
-	"golang.org/x/tools/playground/socket"
 )
 
 const (
@@ -27,7 +25,7 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&verbose, "verbose", true, "Debug mode")
+	flag.BoolVar(&verbose, "verbose", false, "Debug mode")
 
 	if *listenAddr == "" {
 		*listenAddr = "8080"
@@ -39,21 +37,11 @@ func main() {
 
 	debug = lib.Debug(verbose)
 
-	u, err := url.Parse("ws://localhost:" + *listenAddr + "/co")
-	if err != nil {
-		debug.Printf("Error: %v\n", err)
-	}
-
 	http.Handle("/", indexHandler())
 	http.Handle("/static/", lib.GZipHandler(lib.CacheHandler(30, staticHandler())))
 	http.Handle("/ws", websocket.Handler(wsHandler))
 
-	ws := socket.NewHandler(u)
-
-	http.Handle("/co", ws.Handler)
-
 	debug.Printf("Listening on: %s\n", *listenAddr)
-
 	log.Fatal(http.ListenAndServe(":"+*listenAddr, nil))
 }
 
@@ -70,8 +58,6 @@ func staticHandler() http.Handler {
 }
 
 func wsHandler(ws *websocket.Conn) {
-	//! Remember: returning here disconnects client
-
 	registerClient(ws)
 
 	for {
@@ -79,19 +65,18 @@ func wsHandler(ws *websocket.Conn) {
 		var out lib.Message
 
 		if err := websocket.JSON.Receive(ws, &msg); err != nil {
-			debug.Printf("Error reading message:\n%s\n", err)
+			debug.Printf("Error reading message: %s\n", err)
 			unregisterClient(ws)
 			return
 		}
 
-		debug.Printf("Received message:\n%s\n", msg.Kind)
+		debug.Printf("Received message: %s\n", msg.Kind)
 
 		switch msg.Kind {
 		case "format":
 			data, err := lib.Format([]byte(msg.Body))
 			if err != nil {
-
-				debug.Printf("Format Error:\n%s\n", err)
+				debug.Printf("Format Error: %s\n", err)
 
 				out = lib.Message{
 					Kind: "error",
@@ -99,7 +84,7 @@ func wsHandler(ws *websocket.Conn) {
 				}
 
 				if err := sendToAll(ws, out); err != nil {
-					debug.Printf("Error sending message:\n%s\n", err)
+					debug.Printf("Error sending message: %s\n", err)
 				}
 
 			}
@@ -111,25 +96,22 @@ func wsHandler(ws *websocket.Conn) {
 					Args: lib.MakeArgs(c.Name),
 				}
 				if err := sendToAll(ws, out); err != nil {
-					debug.Printf("Error sending message:\n%s\n", err)
+					debug.Printf("Error sending message: %s\n", err)
 				}
 			}
 
 		case "save":
 			data, err := lib.CreateGist("GoGist", msg.Body)
 			if err != nil {
-				debug.Printf("Error creating gist:\n%v\n", err)
+				debug.Printf("Error creating gist: %v\n", err)
 			}
-			debug.Printf("Created gist:\n%s\n", data)
 
-			// Parse Githubs reponse
 			resp, err := lib.ParseResponse(data)
 			if err != nil {
-				debug.Printf("Error parsing Gists response:\n%s\n", err)
+				debug.Printf("Error parsing Gists response: %s\n", err)
 			}
 
 			s := fmt.Sprintf("%s", resp["html_url"])
-			debug.Printf("Gist response:\n%s\n", s)
 
 			out = lib.Message{
 				Kind: "gist",
@@ -137,23 +119,19 @@ func wsHandler(ws *websocket.Conn) {
 			}
 
 			if err := sendToAll(ws, out); err != nil {
-				debug.Printf("Error sending message:\n%s\n", err)
+				debug.Printf("Error sending message: %s\n", err)
 			}
 
 		case "compile":
-			debug.Printf("Client wants to compile code:\n%s\n", msg.Body)
-
 			data, err := lib.Compile(msg.Body)
 			if err != nil {
-				debug.Printf("Error compiling code (remote):\n%s\n", err)
+				debug.Printf("Error compiling code (remote): %s\n", err)
 			}
-			debug.Printf("Compiled code:\n%s\n", string(data))
 
 			cr, err := lib.ParseCompileResponse(data)
 			if err != nil {
-				debug.Printf("Error parsing compile response:\n%s\n", err)
+				debug.Printf("Error parsing compile response: %s\n", err)
 			}
-			debug.Printf("Compile response:\n%s\n", cr)
 
 			// WTF!
 			if s := cr.Message(); s != nil {
@@ -163,14 +141,11 @@ func wsHandler(ws *websocket.Conn) {
 						Body: s.(string),
 					}
 
-					if err := sendToAll(ws, out); err != nil {
-						debug.Printf("Error sending message:\n%s\n", err)
-					}
+					sendToAll(ws, out)
 				}
 			}
 
 		case "chat":
-			debug.Printf("User message:\n%s\n", msg.Body)
 			t := time.Now().Format(time.Kitchen)
 
 			if c := getClient(ws); c != nil {
@@ -178,17 +153,11 @@ func wsHandler(ws *websocket.Conn) {
 					Kind: "chat",
 					Body: lib.AppendString("[", t, "]", c.Name, ": ", msg.Body),
 				}
-				if err := sendToAll(ws, out); err != nil {
-					debug.Printf("Error sending message:\n%s\n", err)
-				}
+				sendToAll(ws, out)
 			}
 
 		case "update":
-			debug.Printf("Text update:\n%v\n", msg.Args)
-
 			if c := getClient(ws); c != nil {
-				debug.Printf("Sending update\n")
-
 				out = lib.Message{
 					Kind: "update",
 					Body: msg.Body,
@@ -196,7 +165,7 @@ func wsHandler(ws *websocket.Conn) {
 				}
 
 				if err := sendToOthers(ws, out); err != nil {
-					debug.Printf("Error sending message:\n%s\n", err)
+					debug.Printf("Error sending message: %s\n", err)
 				}
 			}
 		}
@@ -219,24 +188,17 @@ func registerClient(ws *websocket.Conn) {
 		Conn: ws,
 	}
 
-	// If this client is not alone,
-	// he is a "spectator"
-	s := true
-	if n > 0 {
-		s = false
-	}
-
 	// Send welcome message
 	var msg lib.Message
 
 	msg = lib.Message{
 		Kind: "info",
 		Body: lib.AppendString("[", lib.PrintTimeStamp(), "] ", "Welcome, ", clients[u].Name),
-		Args: lib.MakeArgs(clients[u].Name, s),
+		Args: lib.MakeArgs(clients[u].Name),
 	}
 
 	if err := sendToClient(ws, msg); err != nil {
-		debug.Printf("Error sending message:\n%s\n", err)
+		debug.Printf("Error sending message: %s\n", err)
 	}
 
 	msg = lib.Message{
@@ -245,7 +207,7 @@ func registerClient(ws *websocket.Conn) {
 	}
 
 	if err := sendToOthers(ws, msg); err != nil {
-		debug.Printf("Error sending mesaage to others:\n%s\n", err)
+		debug.Printf("Error sending mesaage to others: %s\n", err)
 	}
 }
 
@@ -304,12 +266,12 @@ func sendToOthers(ws *websocket.Conn, msg lib.Message) error {
 func sendToAll(ws *websocket.Conn, msg lib.Message) error {
 
 	if err := sendToClient(ws, msg); err != nil {
-		debug.Printf("Error sending message to client:\n%s\n", err)
+		debug.Printf("Error sending message to client: %s\n", err)
 		return err
 	}
 
 	if err := sendToOthers(ws, msg); err != nil {
-		debug.Printf("Error sending message to others:\n%s\n", err)
+		debug.Printf("Error sending message to others: %s\n", err)
 		return err
 	}
 

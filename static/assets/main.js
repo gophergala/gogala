@@ -3,20 +3,17 @@
 
   window.addEventListener('load', init, false);
 
-  var defaultClientId = 'gopher-gala-2015@julienc';
+  var defaultClientId = 'gogala';
   var clientId = null;
-  // UI
   var editor = null;
   var output = document.getElementById('js-output');
-  var instructionsTpl = document.getElementById('js-instructions-tpl');
+  var instructions = document.getElementById('js-instructions-tpl');
   var gistBtn = document.getElementById('js-btn-gist');
   var chatTxt = document.getElementById('js-chat-txt');
   var chatInput = document.getElementById('js-chat-input');
-
-  // WebSocket
   var ws = null;
 
-  // Message handling
+  // "Controllers"
   var msgCtrl = {
     info: function (data) {
       if (data.Args) {
@@ -36,19 +33,19 @@
     },
 
     error: function (data) {
-      setOutput(data.Body, 'error');
+      setOutput(data.Body);
     },
 
     stderr: function (data) {
-      setOutput(data.Body, 'stderr');
+      setOutput(data.Body);
     },
 
     stdout: function (data) {
-      setOutput(data.Body, 'success', true);
+      setOutput(data.Body, true);
     },
 
     gist: function (data) {
-      setOutput('Code saved @ ' + data.Body, 'success');
+      setOutput('Code saved @ ' + data.Body);
     },
 
     chat: function (data) {
@@ -71,25 +68,25 @@
   };
 
   // Socket controller
-  var socketCtrl = {
+  var wsCtrl = {
     connected: false,
 
     open: function () {
-      if (!socketCtrl.connected) {
-        socketCtrl.connected = true;
+      if (!wsCtrl.connected) {
+        wsCtrl.connected = true;
         setChatText('Connected to chat');
       }
     },
 
     close: function () {
-      if (socketCtrl.connected) {
-        setChatText('Disconneced', 'error');
+      if (wsCtrl.connected) {
+        setChatText('Disconnected\n(Happens after a few minutes of inactivity');
       }
-      socketCtrl.connected = false;
+      wsCtrl.connected = false;
     },
 
     error: function (e) {
-      setChatText('Socket error:', 'error');
+      setChatText('Socket error:');
     },
 
     message: function (e) {
@@ -130,7 +127,7 @@
     // Hide gutter
     editor.renderer.setShowGutter(false);
 
-    setText(instructionsTpl.textContent.trim());
+    setText(instructions.textContent.trim());
 
     editor.focus();
 
@@ -170,8 +167,8 @@
   function socketHandler(e) {
     // console.log('WebSocket Event', e.type);
 
-    if (typeof socketCtrl[e.type] === 'function') {
-      socketCtrl[e.type](e);
+    if (typeof wsCtrl[e.type] === 'function') {
+      wsCtrl[e.type](e);
     }
   }
 
@@ -182,15 +179,15 @@
   }
 
   function sendCode(src) {
-    socketCtrl.send(ws, { Id: defaultClientId, Kind: 'compile', Body: src });
+    wsCtrl.send(ws, { Id: defaultClientId, Kind: 'compile', Body: src });
   }
 
   function saveCode() {
-    socketCtrl.send(ws, { Id: defaultClientId, Kind: 'save', Body: editor.getValue() });
+    wsCtrl.send(ws, { Id: defaultClientId, Kind: 'save', Body: editor.getValue() });
   }
 
   function sendChatMessage(e) {
-    if (e.keyCode === 13) {
+    if (e.keyCode === 13 && e.currentTarget.value) {
       var txt = e.currentTarget.value;
       e.currentTarget.value = '';
       sendMessage('chat', txt);
@@ -212,21 +209,12 @@
     editor.setReadOnly(false);
   }
 
-  function setOutput(txt, cssClasses, empty) {
+  function setOutput(txt, empty) {
     var el = document.createElement('pre');
     el.classList.add('text');
-
-    if (cssClasses) {
-      cssClasses = cssClasses.split(' ');
-      var i = 0, l = cssClasses.length;
-      for ( ; i < l; i++) {
-        el.classList.add(cssClasses[i]);
-      }
-    }
     el.innerHTML += txt;
 
     if (empty) { output.innerHTML = ''; }
-
     output.appendChild(document.createDocumentFragment().appendChild(el));
     output.scrollTop = output.scrollHeight - output.offsetHeight;
   }
