@@ -39,6 +39,8 @@ func Compile(body string) ([]byte, error) {
 	resp, err := http.PostForm("http://golang.org/compile",
 		url.Values{"version": {"2"}, "body": {body}})
 
+	resp.Header.Add("User-Agent", "Gopher-Gala-2015@julienc")
+
 	if err != nil {
 		return nil, err
 	}
