@@ -50,9 +50,9 @@
       setChatText(data.Body);
     },
     update: function (data) {
-      if (Array.isArray(data.Args) && data.Args[0] !== clientId) {
-        setText(data.Body, true);
-      }
+      // if (Array.isArray(data.Args) && data.Args[0] !== clientId) {
+      //   setText(data.Body, true);
+      // }
     }
   };
 
