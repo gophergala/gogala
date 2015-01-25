@@ -199,7 +199,7 @@
 
   function setChatText(str) {
     chatTxt.value += str + '\n';
-    chatTxt.scrollTop = chatText.scrollHeight - chatText.offsetHeight;
+    chatTxt.scrollTop = chatTxt.scrollHeight - chatTxt.offsetHeight;
   }
 
   function setText(str, write) {
