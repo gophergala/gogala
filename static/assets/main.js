@@ -4,6 +4,7 @@
   window.addEventListener('load', init, false);
 
   var defaultClientId = 'gopher-gala-2015@julienc';
+  var clientId = null;
   // UI
   var editor = null;
   var output = document.getElementById('js-output');
@@ -19,6 +20,7 @@
   // Message handling
   var msgCtrl = {
     info: function (data) {
+      if (data.Args) clientId = data.Args[0];
       setOutput(data.Body);
       setChatText(data.Body);
     },
@@ -44,9 +46,13 @@
       setOutput('Code saved @ ' + data.Body, 'success');
       setChatText('Code saved @ ' + data.Body);
     },
-
     chat: function (data) {
       setChatText(data.Body);
+    },
+    update: function (data) {
+      if (Array.isArray(data.Args) && data.Args[0] !== clientId) {
+        setText(data.Body, true);
+      }
     }
   };
 
@@ -133,6 +139,12 @@
         cm.ace.execCommand('saveFile');
       });
     });
+
+    editor.getSession().on('change', function (obj, session) {
+      sendMessage('update', session.getValue());
+    });
+    // TODO: remove ref, just for debugging the shit
+    window.editor = editor;
   }
 
   function setText(str, write) {

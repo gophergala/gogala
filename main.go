@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultName = "›µ-"
+	defaultName = "U-"
 )
 
 var (
@@ -165,7 +165,7 @@ func wsHandler(ws *websocket.Conn) {
 			}
 
 		case "chat":
-			debug.Printf("The dude want to say something:\n%s\n", msg.Body)
+			debug.Printf("User message:\n%s\n", msg.Body)
 			t := time.Now().Format(time.Kitchen)
 
 			if c := getClient(ws); c != nil {
@@ -174,6 +174,20 @@ func wsHandler(ws *websocket.Conn) {
 					Body: lib.AppendString("[", t, "]", c.Name, ": ", msg.Body),
 				}
 				if err := sendMulti(ws, out); err != nil {
+					debug.Printf("Error sending message:\n%s\n", err)
+				}
+			}
+
+		case "update":
+			debug.Printf("Text update:\n%s\n", msg.Body)
+
+			if c := getClient(ws); c != nil {
+				out = lib.Message{
+					Kind: "update",
+					Body: msg.Body,
+					Args: lib.MakeArgs(c.Name),
+				}
+				if err := sendToOthers(ws, out); err != nil {
 					debug.Printf("Error sending message:\n%s\n", err)
 				}
 			}
@@ -204,7 +218,7 @@ func registerClient(ws *websocket.Conn) {
 	msg = lib.Message{
 		Kind: "info",
 		Body: "Welcome, " + clients[u].Name,
-		Args: lib.MakeArgs("name"),
+		Args: lib.MakeArgs(clients[u].Name),
 	}
 
 	if err := sendToClient(ws, msg); err != nil {
