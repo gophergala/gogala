@@ -26,7 +26,12 @@ gogala
 
   + An online version of this app is available [here](http://gogala.herokuapp.com) ...
 
-    - *Don't use HTTPS*
+    - *Don't use HTTPS* (Doesn't work with WebSocket)
+
+  + If the online version is down, you can clone the repo and start
+    the app by running `go run main.go` in your terminal, then visit http://localhost:8080
+
+
 
 
 
