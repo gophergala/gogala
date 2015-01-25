@@ -1,6 +1,9 @@
 package lib
 
-import "bytes"
+import (
+	"bytes"
+	"time"
+)
 
 func MakeArgs(a ...interface{}) []interface{} {
 	args := make([]interface{}, 0)
@@ -17,4 +20,8 @@ func AppendString(a ...string) string {
 		b.WriteString(a[i])
 	}
 	return b.String()
+}
+
+func PrintTimeStamp() string {
+	return time.Now().Format(time.Kitchen)
 }

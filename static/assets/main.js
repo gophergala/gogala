@@ -4,12 +4,13 @@
   window.addEventListener('load', init, false);
 
   var defaultClientId = 'gopher-gala-2015@julienc';
+  var spectating = false;
   var clientId = null;
   // UI
   var editor = null;
   var output = document.getElementById('js-output');
   var instructionsTpl = document.getElementById('js-instructions-tpl');
-  var saveBtn = document.getElementById('js-btn-gist');
+  var gistBtn = document.getElementById('js-btn-gist');
   var chatTxt = document.getElementById('js-chat-txt');
   var chatInput = document.getElementById('js-chat-input');
 
@@ -20,39 +21,70 @@
   // Message handling
   var msgCtrl = {
     info: function (data) {
-      if (data.Args) clientId = data.Args[0];
-      setOutput(data.Body);
+      if (data.Args) {
+        clientId = data.Args[0];
+        spectating = !data.Args[1];
+        setOutput('Your client id is: ' + clientId);
+      }
+
+      if (spectating) {
+        editor.setReadOnly(spectating);
+        setOutput('You are a spectator');
+      }
       setChatText(data.Body);
     },
+
     code: function (data) {
       if (data.Body) {
-        saveBtn.disabled = false;
         setText(data.Body, true);
       }
-      sendCode(data.Body);
+
+      if (!spectator) {
+        sendCode(data.Body);
+      }
     },
+
     error: function (data) {
       setOutput(data.Body, 'error');
     },
+
     stderr: function (data) {
-      saveBtn.disabled = false;
       setOutput(data.Body, 'stderr');
     },
+
     stdout: function (data) {
-      saveBtn.disabled = false;
       setOutput(data.Body, 'success', true);
     },
+
     gist: function (data) {
       setOutput('Code saved @ ' + data.Body, 'success');
-      setChatText('Code saved @ ' + data.Body);
     },
+
     chat: function (data) {
       setChatText(data.Body);
     },
+
     update: function (data) {
-      // if (Array.isArray(data.Args) && data.Args[0] !== clientId) {
-      //   setText(data.Body, true);
-      // }
+      if (spectating) {
+        // console.log('update', data);
+
+        editor.setReadOnly(true);
+        editor.setValue(data.Body);
+        editor.clearSelection();
+      }
+    },
+
+    leave: function (data) {
+      setChatText(data.Body);
+
+      if (Array.isArray(data.Args) && data.Args[0]) {
+        spectating = !data.Args[0];
+      }
+
+      if (!spectating) {
+        setChatText('You can now write code');
+        editor.setReadOnly(false);
+      }
     }
   };
 
@@ -63,26 +95,24 @@
     open: function () {
       if (!socketCtrl.connected) {
         socketCtrl.connected = true;
-        setOutput('Connected to socket', 'success');
         setChatText('Connected to chat');
       }
     },
 
     close: function () {
       if (socketCtrl.connected) {
-        setOutput('Disconneced', 'error');
+        setChatText('Disconneced', 'error');
       }
       socketCtrl.connected = false;
     },
 
     error: function (e) {
-      console.log('socket error:', e);
-      setOutput('Socket error:', 'error');
+      setChatText('Socket error:', 'error');
     },
 
     message: function (e) {
       var data = JSON.parse(e.data);
-      console.log('Message:', data);
+      // console.log('Message:', data);
 
       if (typeof msgCtrl[data.Kind] === 'function') {
         msgCtrl[data.Kind](data);
@@ -101,7 +131,7 @@
     initEditor();
     initSocket();
     // UI event handlers
-    saveBtn.addEventListener('click', saveCode, false);
+    gistBtn.addEventListener('click', saveCode, false);
     chatInput.addEventListener('keydown', sendChatMessage, false);
 
   }
@@ -140,11 +170,56 @@
       });
     });
 
-    // editor.getSession().on('change', function (obj, session) {
-    //   sendMessage('update', session.getValue());
-    // });
+    editor.getSession().on('change', function (e) {
+      if (!spectating) {
+        sendMessage('update', editor.getValue());
+      }
+    });
+
     // TODO: remove ref, just for debugging the shit
     window.editor = editor;
+  }
+
+  function initSocket() {
+    ws = new WebSocket('ws://' + location.host + '/ws');
+    ws.addEventListener('open', socketHandler, false);
+    ws.addEventListener('close', socketHandler, false);
+    ws.addEventListener('error', socketHandler, false);
+    ws.addEventListener('message', socketHandler, false);
+  }
+
+  function socketHandler(e) {
+    // console.log('WebSocket Event', e.type);
+
+    if (typeof socketCtrl[e.type] === 'function') {
+      socketCtrl[e.type](e);
+    }
+  }
+
+  function sendMessage(kind, body, args) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ Id: 'gopher-gala-2015@julienc', Kind: kind, Body: body, Args: args }));
+    }
+  }
+
+  function sendCode(src) {
+    socketCtrl.send(ws, { Id: defaultClientId, Kind: 'compile', Body: src });
+  }
+
+  function saveCode() {
+    socketCtrl.send(ws, { Id: defaultClientId, Kind: 'save', Body: editor.getValue() });
+  }
+
+  function sendChatMessage(e) {
+    if (e.keyCode === 13) {
+      var txt = e.currentTarget.value;
+      e.currentTarget.value = '';
+      sendMessage('chat', txt);
+    }
+  }
+
+  function setChatText(str) {
+    chatTxt.value += str + '\n';
   }
 
   function setText(str, write) {
@@ -155,58 +230,6 @@
     editor.setValue(str);
     editor.setReadOnly(false);
     editor.clearSelection();
-
-  }
-
-  function sendMessage(kind, body, args) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        Id: 'gopher-gala-2015@julienc',
-        Kind: kind,
-        Body: body,
-        Args: args
-      }));
-    }
-  }
-
-  function initSocket() {
-    ws = new WebSocket('ws://' + location.host + '/ws');
-    ws.addEventListener('open', socketHandler, false);
-    ws.addEventListener('close', socketHandler, false);
-    ws.addEventListener('error', socketHandler, false);
-    ws.addEventListener('message', socketHandler, false);
-
-    // This is for "local" compiling ...
-    // disabled now
-    // wsRemote = new WebSocket('ws://' + location.host + '/co');
-    // wsRemote.addEventListener('open', socketHandler, false);
-    // wsRemote.addEventListener('close', socketHandler, false);
-    // wsRemote.addEventListener('error', socketHandler, false);
-    // wsRemote.addEventListener('message', socketHandler, false);
-  }
-
-  function socketHandler(e) {
-    console.log('WebSocket Event', e.type);
-    // handle with socketCtrl
-    if (typeof socketCtrl[e.type] === 'function') {
-      socketCtrl[e.type](e);
-    }
-  }
-
-  function sendCode(src) {
-    socketCtrl.send(ws, {
-      Id: defaultClientId,
-      Kind: 'compile',
-      Body: src
-    });
-  }
-
-  function saveCode() {
-    socketCtrl.send(ws, {
-      Id: defaultClientId,
-      Kind: 'save',
-      Body: editor.getValue()
-    });
   }
 
   function setOutput(txt, cssClasses, empty) {
@@ -226,17 +249,5 @@
 
     output.appendChild(document.createDocumentFragment().appendChild(el));
     output.scrollTop = output.scrollHeight - output.offsetHeight;
-  }
-
-  function setChatText(str) {
-    chatTxt.value += str + '\n';
-  }
-
-  function sendChatMessage(e) {
-    if (e.keyCode === 13) {
-      var txt = e.currentTarget.value;
-      e.currentTarget.value = '';
-      sendMessage('chat', txt);
-    }
   }
 }());

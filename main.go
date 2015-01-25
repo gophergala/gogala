@@ -79,11 +79,13 @@ func wsHandler(ws *websocket.Conn) {
 		var out lib.Message
 
 		if err := websocket.JSON.Receive(ws, &msg); err != nil {
+			debug.Printf("Error reading message:\n%s\n", err)
+			unregisterClient(ws)
 			return
 		}
-		debug.Printf("Received message:\n%s\n", msg)
 
-		// Analyse incoming messages
+		debug.Printf("Received message:\n%s\n", msg.Kind)
+
 		switch msg.Kind {
 		case "format":
 			data, err := lib.Format([]byte(msg.Body))
@@ -96,7 +98,7 @@ func wsHandler(ws *websocket.Conn) {
 					Body: err.Error(),
 				}
 
-				if err := sendMulti(ws, out); err != nil {
+				if err := sendToAll(ws, out); err != nil {
 					debug.Printf("Error sending message:\n%s\n", err)
 				}
 
@@ -106,7 +108,7 @@ func wsHandler(ws *websocket.Conn) {
 				Kind: "code",
 				Body: string(data),
 			}
-			if err := sendMulti(ws, out); err != nil {
+			if err := sendToAll(ws, out); err != nil {
 				debug.Printf("Error sending message:\n%s\n", err)
 			}
 
@@ -131,7 +133,7 @@ func wsHandler(ws *websocket.Conn) {
 				Body: s,
 			}
 
-			if err := sendMulti(ws, out); err != nil {
+			if err := sendToAll(ws, out); err != nil {
 				debug.Printf("Error sending message:\n%s\n", err)
 			}
 
@@ -158,7 +160,7 @@ func wsHandler(ws *websocket.Conn) {
 						Body: s.(string),
 					}
 
-					if err := sendMulti(ws, out); err != nil {
+					if err := sendToAll(ws, out); err != nil {
 						debug.Printf("Error sending message:\n%s\n", err)
 					}
 				}
@@ -173,24 +175,24 @@ func wsHandler(ws *websocket.Conn) {
 					Kind: "chat",
 					Body: lib.AppendString("[", t, "]", c.Name, ": ", msg.Body),
 				}
-				if err := sendMulti(ws, out); err != nil {
+				if err := sendToAll(ws, out); err != nil {
 					debug.Printf("Error sending message:\n%s\n", err)
 				}
 			}
 
-			// case "update":
-			// 	debug.Printf("Text update:\n%s\n", msg.Body)
-			//
-			// 	if c := getClient(ws); c != nil {
-			// 		out = lib.Message{
-			// 			Kind: "update",
-			// 			Body: msg.Body,
-			// 			Args: lib.MakeArgs(c.Name),
-			// 		}
-			// 		if err := sendToOthers(ws, out); err != nil {
-			// 			debug.Printf("Error sending message:\n%s\n", err)
-			// 		}
-			// 	}
+		case "update":
+			debug.Printf("Text update:\n%v\n", msg.Args)
+
+			if c := getClient(ws); c != nil {
+				out = lib.Message{
+					Kind: "update",
+					Body: msg.Body,
+				}
+
+				if err := sendToOthers(ws, out); err != nil {
+					debug.Printf("Error sending message:\n%s\n", err)
+				}
+			}
 		}
 
 	}
@@ -198,27 +200,33 @@ func wsHandler(ws *websocket.Conn) {
 
 func registerClient(ws *websocket.Conn) {
 
-	c := 1
-	for _ = range clients {
-		c++
-	}
-	u := strconv.Itoa(c)
-	if c < 10 {
+	n := len(clients)
+	u := strconv.Itoa(n)
+	if n < 10 {
 		u = "0" + u
 	}
 
+	// Store client in clients map
 	clients[u] = lib.Client{
 		Id:   u,
 		Name: defaultName + u,
 		Conn: ws,
 	}
 
+	// If this client is not alone,
+	// he is a "spectator"
+	s := true
+	if n > 0 {
+		s = false
+	}
+
+	// Send welcome message
 	var msg lib.Message
 
 	msg = lib.Message{
 		Kind: "info",
-		Body: "Welcome, " + clients[u].Name,
-		Args: lib.MakeArgs(clients[u].Name),
+		Body: lib.AppendString("[", lib.PrintTimeStamp(), "] ", "Welcome, ", clients[u].Name),
+		Args: lib.MakeArgs(clients[u].Name, s),
 	}
 
 	if err := sendToClient(ws, msg); err != nil {
@@ -227,11 +235,38 @@ func registerClient(ws *websocket.Conn) {
 
 	msg = lib.Message{
 		Kind: "info",
-		Body: clients[u].Name + " joined",
+		Body: lib.AppendString("[", lib.PrintTimeStamp(), "] ", clients[u].Name, " joined"),
 	}
+
 	if err := sendToOthers(ws, msg); err != nil {
 		debug.Printf("Error sending mesaage to others:\n%s\n", err)
 	}
+}
+
+func unregisterClient(ws *websocket.Conn) {
+	var n string
+
+	// Remove client
+	for k, v := range clients {
+		if v.Conn == ws {
+			n = k
+			delete(clients, k)
+		}
+	}
+
+	s := false
+	if len(clients) == 1 {
+		s = true
+	}
+
+	// Notify
+	msg := lib.Message{
+		Kind: "leave",
+		Body: n,
+		Args: lib.MakeArgs(s),
+	}
+
+	sendToOthers(ws, msg)
 }
 
 func getClient(ws *websocket.Conn) *lib.Client {
@@ -260,7 +295,7 @@ func sendToOthers(ws *websocket.Conn, msg lib.Message) error {
 	return nil
 }
 
-func sendMulti(ws *websocket.Conn, msg lib.Message) error {
+func sendToAll(ws *websocket.Conn, msg lib.Message) error {
 
 	if err := sendToClient(ws, msg); err != nil {
 		debug.Printf("Error sending message to client:\n%s\n", err)
