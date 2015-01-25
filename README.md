@@ -25,7 +25,8 @@ gogala
   + No tests ...didn't have time
 
   + An online version of this app is available [here](http://gogala.herokuapp.com) ...
-    * Don't use **HTTPS** *
+
+    - *Don't use HTTPS*
 
 
 
