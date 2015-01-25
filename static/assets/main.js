@@ -24,7 +24,7 @@
       if (data.Args) {
         clientId = data.Args[0];
         spectating = !data.Args[1];
-        setOutput('Your client id is: ' + clientId);
+        setChatText('Your client id is: ' + clientId);
       }
 
       if (spectating) {
@@ -39,7 +39,7 @@
         setText(data.Body, true);
       }
 
-      if (!spectator) {
+      if (!spectating) {
         sendCode(data.Body);
       }
     },
