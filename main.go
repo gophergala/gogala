@@ -104,12 +104,15 @@ func wsHandler(ws *websocket.Conn) {
 
 			}
 
-			out = lib.Message{
-				Kind: "code",
-				Body: string(data),
-			}
-			if err := sendToAll(ws, out); err != nil {
-				debug.Printf("Error sending message:\n%s\n", err)
+			if c := getClient(ws); c != nil {
+				out = lib.Message{
+					Kind: "code",
+					Body: string(data),
+					Args: lib.MakeArgs(c.Name),
+				}
+				if err := sendToAll(ws, out); err != nil {
+					debug.Printf("Error sending message:\n%s\n", err)
+				}
 			}
 
 		case "save":
@@ -184,9 +187,12 @@ func wsHandler(ws *websocket.Conn) {
 			debug.Printf("Text update:\n%v\n", msg.Args)
 
 			if c := getClient(ws); c != nil {
+				debug.Printf("Sending update\n")
+
 				out = lib.Message{
 					Kind: "update",
 					Body: msg.Body,
+					Args: lib.MakeArgs(c.Name),
 				}
 
 				if err := sendToOthers(ws, out); err != nil {

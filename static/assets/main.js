@@ -4,7 +4,6 @@
   window.addEventListener('load', init, false);
 
   var defaultClientId = 'gopher-gala-2015@julienc';
-  var spectating = false;
   var clientId = null;
   // UI
   var editor = null;
@@ -16,20 +15,13 @@
 
   // WebSocket
   var ws = null;
-  // var wsRemote = null;
 
   // Message handling
   var msgCtrl = {
     info: function (data) {
       if (data.Args) {
         clientId = data.Args[0];
-        spectating = !data.Args[1];
         setChatText('Your client id is: ' + clientId);
-      }
-
-      if (spectating) {
-        editor.setReadOnly(spectating);
-        setOutput('You are a spectator');
       }
       setChatText(data.Body);
     },
@@ -38,8 +30,7 @@
       if (data.Body) {
         setText(data.Body, true);
       }
-
-      if (!spectating) {
+      if (Array.isArray(data.Args) && data.Args[0] === clientId)  {
         sendCode(data.Body);
       }
     },
@@ -65,26 +56,17 @@
     },
 
     update: function (data) {
-      if (spectating) {
-        // console.log('update', data);
+      if (Array.isArray(data.Args) && data.Args[0] !== clientId)  {
+        editor.getSession().off('change', changeText);
 
-        editor.setReadOnly(true);
-        editor.setValue(data.Body);
-        editor.clearSelection();
+        setText(data.Body, true);
+
+        editor.getSession().on('change', changeText);
       }
     },
 
     leave: function (data) {
       setChatText(data.Body);
-
-      if (Array.isArray(data.Args) && data.Args[0]) {
-        spectating = !data.Args[0];
-      }
-
-      if (!spectating) {
-        setChatText('You can now write code');
-        editor.setReadOnly(false);
-      }
     }
   };
 
@@ -112,8 +94,6 @@
 
     message: function (e) {
       var data = JSON.parse(e.data);
-      // console.log('Message:', data);
-
       if (typeof msgCtrl[data.Kind] === 'function') {
         msgCtrl[data.Kind](data);
       }
@@ -133,7 +113,6 @@
     // UI event handlers
     gistBtn.addEventListener('click', saveCode, false);
     chatInput.addEventListener('keydown', sendChatMessage, false);
-
   }
 
   function initEditor() {
@@ -170,14 +149,14 @@
       });
     });
 
-    editor.getSession().on('change', function (e) {
-      if (!spectating) {
-        sendMessage('update', editor.getValue());
-      }
-    });
+    editor.getSession().on('change', changeText);
 
     // TODO: remove ref, just for debugging the shit
     window.editor = editor;
+  }
+
+  function changeText(e) {
+    sendMessage('update', editor.getValue());
   }
 
   function initSocket() {
@@ -220,6 +199,7 @@
 
   function setChatText(str) {
     chatTxt.value += str + '\n';
+    chatTxt.scrollTop = chatText.scrollHeight - chatText.offsetHeight;
   }
 
   function setText(str, write) {
@@ -228,8 +208,8 @@
 
     editor.setReadOnly(true);
     editor.setValue(str);
-    editor.setReadOnly(false);
     editor.clearSelection();
+    editor.setReadOnly(false);
   }
 
   function setOutput(txt, cssClasses, empty) {
