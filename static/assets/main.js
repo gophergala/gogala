@@ -140,9 +140,9 @@
       });
     });
 
-    editor.getSession().on('change', function (obj, session) {
-      sendMessage('update', session.getValue());
-    });
+    // editor.getSession().on('change', function (obj, session) {
+    //   sendMessage('update', session.getValue());
+    // });
     // TODO: remove ref, just for debugging the shit
     window.editor = editor;
   }

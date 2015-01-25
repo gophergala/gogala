@@ -178,19 +178,19 @@ func wsHandler(ws *websocket.Conn) {
 				}
 			}
 
-		case "update":
-			debug.Printf("Text update:\n%s\n", msg.Body)
-
-			if c := getClient(ws); c != nil {
-				out = lib.Message{
-					Kind: "update",
-					Body: msg.Body,
-					Args: lib.MakeArgs(c.Name),
-				}
-				if err := sendToOthers(ws, out); err != nil {
-					debug.Printf("Error sending message:\n%s\n", err)
-				}
-			}
+			// case "update":
+			// 	debug.Printf("Text update:\n%s\n", msg.Body)
+			//
+			// 	if c := getClient(ws); c != nil {
+			// 		out = lib.Message{
+			// 			Kind: "update",
+			// 			Body: msg.Body,
+			// 			Args: lib.MakeArgs(c.Name),
+			// 		}
+			// 		if err := sendToOthers(ws, out); err != nil {
+			// 			debug.Printf("Error sending message:\n%s\n", err)
+			// 		}
+			// 	}
 		}
 
 	}
