@@ -148,8 +148,6 @@
 
     editor.getSession().on('change', changeText);
 
-    // TODO: remove ref, just for debugging the shit
-    window.editor = editor;
   }
 
   function changeText(e) {
