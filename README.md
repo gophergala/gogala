@@ -3,7 +3,7 @@ gogala
 
 [My](https://github.com/julien) entry for the [Gopher Gala](http://gophergala.com) (23-25 Jan 2015)
 
-![Screenshot](http://i.imgur.com/WqKmImL.jpg)
+![Screenshot](screenshot.jpg)
 
 ### Concept
 
